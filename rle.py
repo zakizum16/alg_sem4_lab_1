@@ -1,15 +1,8 @@
 import struct
 import os
-from typing import Tuple, Optional
+from typing import Tuple
 
 class RLECompressor:
-    """
-    RLE компрессор с поддержкой:
-    - Ms: длина кода символа в байтах
-    - Mc: длина управляющего символа в байтах
-    - Обработка повторяющихся и неповторяющихся последовательностей
-    """
-    
     def __init__(self, Ms: int = 1, Mc: int = 1):
         self.Ms = Ms
         self.Mc = Mc
