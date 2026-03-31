@@ -177,239 +177,118 @@ class RLEFileHandler:
         return original_size, len(compressed_data), output_path
 
 
-def test_rle_basic():
-    print("\n" + "="*70)
-    print("ТЕСТ 1: БАЗОВАЯ ФУНКЦИОНАЛЬНОСТЬ RLE")
-    print("="*70)
+def get_available_files():
+    """Получить список доступных файлов из raw_images и test_data"""
+    files = {}
+    counter = 1
     
-    compressor = RLECompressor(Ms=1, Mc=1)
-    
-    test_cases = [
-        (b'\xcf\xcf\xcf\xcf\xcf', "5 повторов"),
-        (b'\xcf\xce\xcf\xce\xcf', "чередование"),
-        (b'\xcf\xce\xcf\xce\xcf\xcf\xcf\xcf\xcf\xcf', "смешанная"),
-    ]
-    
-    for data, desc in test_cases:
-        encoded = compressor.encode(data)
-        decoded = compressor.decode(encoded)
-        
-        print(f"\n{desc}:")
-        print(f"  Исходные: {data.hex().upper()}")
-        print(f"  Сжатые:   {encoded.hex().upper()}")
-        print(f"  Результат: {'OK' if data == decoded else 'FAIL'}")
-
-
-def test_rle_with_Ms():
-    print("\n" + "="*70)
-    print("ТЕСТ 2: RLE С РАЗНЫМИ Ms")
-    print("="*70)
-    
-    compressor = RLECompressor(Ms=2, Mc=1)
-    data = bytes.fromhex('CF CE CF CE CF CE')
-    encoded = compressor.encode(data)
-    decoded = compressor.decode(encoded)
-    
-    print(f"\nMs=2, данные: {data.hex().upper()}")
-    print(f"  Сжатые: {encoded.hex().upper()}")
-    print(f"  Результат: {'OK' if data == decoded else 'FAIL'}")
-    
-    compressor = RLECompressor(Ms=3, Mc=1)
-    data = bytes.fromhex('CF CE CF CF CE CF')
-    encoded = compressor.encode(data)
-    decoded = compressor.decode(encoded)
-    
-    print(f"\nMs=3, данные: {data.hex().upper()}")
-    print(f"  Сжатые: {encoded.hex().upper()}")
-    print(f"  Результат: {'OK' if data == decoded else 'FAIL'}")
-
-
-def test_utf8_problem():
-    print("\n" + "="*70)
-    print("ТЕСТ 3: ПРОБЛЕМА UTF-8")
-    print("="*70)
-    
-    text = "Привет мир! Это текст на русском языке."
-    utf8_data = text.encode('utf-8')
-    
-    print(f"\nИсходный текст: {text}")
-    
-    # Решение: RLE на уровне символов Unicode
-    codepoints = [ord(c) for c in text]
-    char_data = b''.join(cp.to_bytes(4, byteorder='big') for cp in codepoints)
-    
-    compressor_char = RLECompressor(Ms=4, Mc=2)
-    compressed_char = compressor_char.encode(char_data)
-    decompressed_char = compressor_char.decode(compressed_char)
-    
-    recovered_codepoints = []
-    for i in range(0, len(decompressed_char), 4):
-        cp = int.from_bytes(decompressed_char[i:i+4], byteorder='big')
-        recovered_codepoints.append(cp)
-    recovered_text = ''.join(chr(cp) for cp in recovered_codepoints)
-    
-    print(f"\nRLE на символах (Ms=4):")
-    print(f"  Исходный UTF-8: {len(utf8_data)} байт")
-    print(f"  Символьное предст: {len(char_data)} байт")
-    print(f"  Сжатый: {len(compressed_char)} байт")
-    print(f"  Результат: {'OK' if text == recovered_text else 'FAIL'}")
-    
-    return utf8_data, char_data, compressed_char
-
-
-def compress_all_files():
-    """Сжатие всех тестовых файлов, сохранение в папку rlecoding"""
-    print("\n" + "="*70)
-    print("СЖАТИЕ ВСЕХ ТЕСТОВЫХ ФАЙЛОВ -> ПАПКА rlecoding")
-    print("="*70)
-    
-    # Создаем папку rlecoding
-    os.makedirs("rlecoding", exist_ok=True)
-    
-    test_files = []
-    
-    # Ищем файлы в test_data
+    # Файлы из test_data
     if os.path.exists('test_data'):
-        for f in os.listdir('test_data'):
+        for f in sorted(os.listdir('test_data')):
             full_path = os.path.join('test_data', f)
             if os.path.isfile(full_path):
-                test_files.append(full_path)
+                files[counter] = full_path
+                counter += 1
     
-    # Ищем raw файлы
+    # Файлы из raw_images
     if os.path.exists('raw_images'):
-        for f in os.listdir('raw_images'):
-            if f.endswith('.raw'):
-                test_files.append(os.path.join('raw_images', f))
+        for f in sorted(os.listdir('raw_images')):
+            full_path = os.path.join('raw_images', f)
+            if os.path.isfile(full_path):
+                files[counter] = full_path
+                counter += 1
     
-    # Добавляем дополнительные файлы
-    extra_files = ['test_data/russian_text.txt', 'test_data/enwik7.txt', 'test_data/binary_file.bin']
-    for f in extra_files:
-        if os.path.exists(f):
-            test_files.append(f)
-    
-    if not test_files:
-        print("Нет файлов для сжатия!")
-        return []
-    
-    results = []
-    
-    for file_path in test_files:
-        # Определяем Ms по типу файла
-        if 'color' in file_path.lower():
-            Ms = 3
-        elif 'bw' in file_path.lower() or 'gray' in file_path.lower():
-            Ms = 1
-        else:
-            Ms = 1
-        
-        Mc = 1
-        
-        print(f"\n{file_path}:")
-        
-        handler = RLEFileHandler(Ms=Ms, Mc=Mc, output_dir="rlecoding")
-        
-        # Сжатие
-        original_size, compressed_size, compressed_path = handler.compress_file(file_path)
-        
-        # Распаковка
-        decompressed_size, _, decompressed_path = handler.decompress_file(compressed_path)
-        
-        # Проверка
-        with open(file_path, 'rb') as f1, open(decompressed_path, 'rb') as f2:
-            original = f1.read()
-            decompressed = f2.read()
-            success = original == decompressed
-        
-        ratio = original_size / compressed_size if compressed_size > 0 else 1
-        
-        results.append({
-            'file': os.path.basename(file_path),
-            'path': file_path,
-            'Ms': Ms,
-            'original': original_size,
-            'compressed': compressed_size,
-            'ratio': ratio,
-            'success': success,
-            'compressed_path': compressed_path,
-            'decompressed_path': decompressed_path
-        })
-        
-        print(f"  Ms={Ms}, Mc={Mc}")
-        print(f"  Исходный: {original_size:,} байт")
-        print(f"  Сжатый:   {compressed_size:,} байт ({compressed_path})")
-        print(f"  Коэф-т:   {ratio:.2f}x")
-        print(f"  Результат: {'OK' if success else 'FAIL'}")
-    
-    return results
+    return files
 
 
-def analyze_rle_efficiency(results):
-    """Анализ эффективности RLE"""
+def select_file():
+    """Интерактивный выбор файла для сжатия"""
+    files = get_available_files()
+    
+    if not files:
+        print("\n[ERR] Нет файлов в папках test_data и raw_images")
+        return None
+    
     print("\n" + "="*70)
-    print("АНАЛИЗ ЭФФЕКТИВНОСТИ RLE")
+    print("ДОСТУПНЫЕ ФАЙЛЫ")
     print("="*70)
     
-    print("\n1. Оптимальные параметры Ms:")
-    print("   - Черно-белое/серое изображение: Ms = 1 (1 байт/пиксель)")
-    print("   - Цветное изображение: Ms = 3 (RGB пиксель)")
-    print("   - Текст UTF-8: Ms = 1 (побайтово) или Ms = 4 (посимвольно)")
+    for idx, path in sorted(files.items()):
+        size = os.path.getsize(path)
+        print(f"{idx:2}. {path:<50} ({size:>10,} байт)")
     
-    print("\n2. Выбор Mc:")
-    print("   - Mc = 1: макс. длина 127 повторов (достаточно для большинства)")
-    print("   - Mc = 2: макс. длина 32767 повторов (для больших областей)")
+    while True:
+        try:
+            choice = int(input("\nВыберите номер файла (или 0 для выхода): "))
+            if choice == 0:
+                return None
+            if choice in files:
+                return files[choice]
+            else:
+                print("[ERR] Неверный номер. Попробуйте снова.")
+        except ValueError:
+            print("[ERR] Введите число.")
+
+
+def determine_ms(file_path: str) -> int:
+    """Определить оптимальный Ms для файла"""
+    name_lower = os.path.basename(file_path).lower()
     
-    print("\n3. Проблема UTF-8:")
-    print("   - Побайтовое сжатие может разорвать многобайтовые символы")
-    print("   - Решение: Ms = 4 (4 байта на символ) и работа с кодовыми точками")
-    
-    print("\n4. Результаты сжатия:")
-    print("-"*70)
-    print(f"{'Файл':<35} {'Ms':<4} {'Исходный':>12} {'Сжатый':>12} {'Коэф.':>8}")
-    print("-"*70)
-    
-    for r in results:
-        orig_kb = f"{r['original']/1024:.1f}KB"
-        comp_kb = f"{r['compressed']/1024:.1f}KB"
-        print(f"{r['file'][:33]:<35} {r['Ms']:<4} {orig_kb:>11} {comp_kb:>11} {r['ratio']:>7.2f}x")
-    
-    print("\n5. Оценка:")
-    for r in results:
-        if r['ratio'] > 2:
-            print(f"   [GOOD] {r['file']}: {r['ratio']:.2f}x - хорошее сжатие")
-        elif r['ratio'] > 1:
-            print(f"   [MEDIUM] {r['file']}: {r['ratio']:.2f}x - среднее сжатие")
-        else:
-            print(f"   [POOR] {r['file']}: {r['ratio']:.2f}x - плохое сжатие (данные случайные)")
+    if 'color' in name_lower:
+        return 3  # RGB
+    elif 'bw' in name_lower or 'gray' in name_lower:
+        return 1  # BW
+    else:
+        return 1  # Default
 
 
 def main():
+    """RLE компрессор - выбор файла и сжатие"""
     print("\n" + "="*70)
     print("RLE КОМПРЕССОР")
     print("="*70)
     
-    # Тест базовой функциональности
-    test_rle_basic()
+    # Выбор файла
+    file_path = select_file()
+    if not file_path:
+        print("Выход.")
+        return
     
-    # Тест с разными Ms
-    test_rle_with_Ms()
+    # Определяем Ms
+    Ms = determine_ms(file_path)
+    Mc = 1
     
-    # Тест UTF-8
-    test_utf8_problem()
+    print("\n" + "="*70)
+    print(f"СЖАТИЕ: {file_path}")
+    print("="*70)
     
-    # Сжатие всех файлов (сохраняем в rlecoding)
-    results = compress_all_files()
+    # Создаем обработчик
+    handler = RLEFileHandler(Ms=Ms, Mc=Mc, output_dir="rlecoding")
     
-    # Анализ
-    if results:
-        analyze_rle_efficiency(results)
-        
-        print("\n" + "="*70)
-        print("ФАЙЛЫ СОХРАНЕНЫ В ПАПКЕ: rlecoding/")
-        print("="*70)
-        print("\nСодержимое папки rlecoding:")
-        for f in os.listdir("rlecoding"):
-            size = os.path.getsize(os.path.join("rlecoding", f))
-            print(f"  {f:<40} {size:>10,} байт")
+    # Сжатие
+    print(f"\nПараметры: Ms={Ms}, Mc={Mc}")
+    print("Сжатие...")
+    original_size, compressed_size, compressed_path = handler.compress_file(file_path)
+    ratio = original_size / compressed_size if compressed_size > 0 else 1
+    
+    print(f"  Исходный размер:  {original_size:>12,} байт")
+    print(f"  Сжатый размер:    {compressed_size:>12,} байт")
+    print(f"  Коэффициент:      {ratio:>23.2f}x")
+    print(f"  Сохранено в:      {compressed_path}")
+    
+    # Распаковка
+    print("\nРаспаковка...")
+    decompressed_size, _, decompressed_path = handler.decompress_file(compressed_path)
+    
+    # Проверка корректности
+    with open(file_path, 'rb') as f1, open(decompressed_path, 'rb') as f2:
+        original = f1.read()
+        decompressed = f2.read()
+        is_correct = original == decompressed
+    
+    status = "[OK]" if is_correct else "[ERR]"
+    print(f"  Статус проверки:  {status} (данные совпадают)" if is_correct else f"  Статус проверки:  {status} (НЕСОВПАДЕНИЕ ДАННЫХ!)")
+    print(f"  Сохранено в:      {decompressed_path}")
     
     print("\n" + "="*70)
     print("ГОТОВО!")
@@ -418,3 +297,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
