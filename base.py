@@ -1,6 +1,3 @@
-"""
-Базовые классы и утилиты для всех компрессоров
-"""
 import time
 import math
 from abc import ABC, abstractmethod
@@ -9,7 +6,6 @@ from collections import Counter
 
 
 def calculate_entropy(data: bytes, Ms: int = 1) -> float:
-    """Вычисляет энтропию данных"""
     if len(data) < Ms:
         return 0.0
     symbols = []
@@ -27,8 +23,6 @@ def calculate_entropy(data: bytes, Ms: int = 1) -> float:
 
 
 class Compressor(ABC):
-    """Базовый класс для всех компрессоров"""
-    
     def __init__(self, name: str):
         self.name = name
         self.original_size = 0
@@ -38,22 +32,16 @@ class Compressor(ABC):
 
     @abstractmethod
     def compress(self, data: bytes) -> bytes:
-        """Сжать данные"""
         pass
 
     @abstractmethod
     def decompress(self, data: bytes) -> bytes:
-        """Распаковать данные"""
         pass
 
     def get_ratio(self) -> float:
-        """Получить коэффициент сжатия"""
-        if self.compressed_size == 0:
-            return 0.0
-        return self.original_size / self.compressed_size
+        return self.original_size / self.compressed_size if self.compressed_size > 0 else 0.0
 
     def get_stats(self) -> Dict:
-        """Получить статистику сжатия"""
         return {
             'name': self.name,
             'original': self.original_size,

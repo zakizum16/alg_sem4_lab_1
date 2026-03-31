@@ -1,6 +1,3 @@
-"""
-Семейство LZ алгоритмов: LZSS, LZ78, LZW
-"""
 import struct
 import time
 from typing import Tuple
@@ -8,7 +5,6 @@ from base import Compressor
 
 
 class LZ77:
-    """LZ77 алгоритм"""
     
     @staticmethod
     def encode(data: bytes, window_size: int = 4096, lookahead_size: int = 18) -> bytes:

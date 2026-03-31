@@ -1,19 +1,6 @@
-"""
-Move-To-Front трансформация
-"""
-
-
 class MTFTransform:
-    """Move-To-Front трансформация для предварительной обработки данных"""
-    
     @staticmethod
     def encode(data: bytes) -> bytes:
-        """
-        Кодировать данные MTF преобразованием.
-        
-        Каждый байт заменяется на его позицию в текущем алфавите,
-        а затем этот элемент перемещается в начало.
-        """
         alphabet = list(range(256))
         result = bytearray()
         for byte in data:
@@ -25,7 +12,6 @@ class MTFTransform:
 
     @staticmethod
     def decode(data: bytes) -> bytes:
-        """Декодировать данные MTF преобразованием"""
         alphabet = list(range(256))
         result = bytearray()
         for index in data:

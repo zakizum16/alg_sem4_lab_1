@@ -1,6 +1,3 @@
-"""
-Комбинированные компрессоры (например BWT+RLE, BWT+MTF+RLE и т.п.)
-"""
 import struct
 import time
 from base import Compressor
@@ -10,7 +7,6 @@ from mtf import MTFTransform
 
 
 class BWTRLECompressor(Compressor):
-    """Комбинация BWT + RLE"""
     
     def __init__(self, block_size: int = 900000):
         super().__init__("BWT+RLE")
@@ -62,7 +58,6 @@ class BWTRLECompressor(Compressor):
 
 
 class BWTMTFRLECompressor(Compressor):
-    """Комбинация BWT + MTF + RLE (лучше для текста)"""
     
     def __init__(self, block_size: int = 900000):
         super().__init__("BWT+MTF+RLE")

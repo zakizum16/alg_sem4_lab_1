@@ -1,6 +1,3 @@
-"""
-Huffman кодирование с CanonicalHuffman поддержкой
-"""
 import struct
 import time
 import heapq
@@ -10,7 +7,6 @@ from base import Compressor
 
 
 class HuffmanNode:
-    """Узел дерева Хаффмана"""
     _counter = 0
     
     def __init__(self, symbol=None, freq=0, left=None, right=None):
@@ -28,11 +24,9 @@ class HuffmanNode:
 
 
 class HuffmanCoding:
-    """Основной класс для Huffman кодирования"""
     
     @staticmethod
     def build_tree(frequencies: Dict[int, int]) -> HuffmanNode:
-        """Построить дерево Хаффмана из частот"""
         if not frequencies:
             return None
         HuffmanNode._counter = 0
@@ -52,7 +46,6 @@ class HuffmanCoding:
 
     @staticmethod
     def build_codes(node: HuffmanNode, code: str = '', codes: Dict[int, str] = None) -> Dict[int, str]:
-        """Построить коды Хаффмана из дерева"""
         if codes is None:
             codes = {}
         if node is None:
@@ -66,7 +59,6 @@ class HuffmanCoding:
 
     @staticmethod
     def encode(data: bytes) -> Tuple[str, Dict[int, str], Dict[int, int]]:
-        """Закодировать данные кодом Хаффмана"""
         frequencies = Counter(data)
         tree = HuffmanCoding.build_tree(dict(frequencies))
         codes = HuffmanCoding.build_codes(tree)

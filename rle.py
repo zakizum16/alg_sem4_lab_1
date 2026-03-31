@@ -105,7 +105,6 @@ class RLECompressor(Compressor):
         return bytes(result)
     
     def compress(self, data: bytes) -> bytes:
-        """Стандартный интерфейс Compressor"""
         self.original_size = len(data)
         start = time.time()
         compressed = self.encode(data)
@@ -114,7 +113,6 @@ class RLECompressor(Compressor):
         return compressed
     
     def decompress(self, data: bytes) -> bytes:
-        """Стандартный интерфейс Compressor"""
         start = time.time()
         decompressed = self.decode(data)
         self.decode_time = time.time() - start
@@ -130,7 +128,6 @@ class RLECompressor(Compressor):
 
 
 class RLEFileHandler:
-    """Работа с файлами RLE"""
     
     def __init__(self, Ms: int = 1, Mc: int = 1, output_dir: str = "rlecoding"):
         self.Ms = Ms
@@ -140,13 +137,11 @@ class RLEFileHandler:
         os.makedirs(output_dir, exist_ok=True)
     
     def compress_file(self, input_path: str) -> Tuple[int, int, str]:
-        """Сжатие файла, сохраняет в папку rlecoding"""
         with open(input_path, 'rb') as f:
             data = f.read()
         
         compressed = self.compressor.encode(data)
         
-        # Сохраняем в папку rlecoding
         base_name = os.path.basename(input_path)
         output_path = os.path.join(self.output_dir, base_name + '.rle')
         
@@ -158,7 +153,6 @@ class RLEFileHandler:
         return len(data), len(compressed), output_path
     
     def decompress_file(self, input_path: str, output_path: str = None) -> Tuple[int, int, str]:
-        """Распаковка файла"""
         with open(input_path, 'rb') as f:
             Ms, Mc = struct.unpack('BB', f.read(2))
             original_size = struct.unpack('>I', f.read(4))[0]
