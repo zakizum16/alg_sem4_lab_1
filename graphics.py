@@ -18,29 +18,21 @@ from bwt import BlockBWT
 from mtf import MTFTransform
 
 
-# ======================== Генерирование тестовых данных ========================
-
 def generate_text_data(size: int = 1000) -> bytes:
-    """Генерирует текстовые данные"""
     text = "The quick brown fox jumps over the lazy dog. " * (size // 45)
     return text[:size].encode('utf-8')
 
 
 def generate_binary_data(size: int = 1000) -> bytes:
-    """Генерирует бинарные данные"""
     return bytes(np.random.randint(0, 256, size, dtype=np.uint8))
 
 
 def generate_repetitive_data(size: int = 1000) -> bytes:
-    """Генерирует дан ные с повторениями"""
     pattern = b"AAABBBCCCDDD"
     return (pattern * (size // len(pattern) + 1))[:size]
 
 
-# ======================== Функции исследований ========================
-
 def calculate_entropy(data: bytes) -> float:
-    """Вычисляет энтропию Шеннона для данных"""
     if not data:
         return 0
     
@@ -56,9 +48,6 @@ def calculate_entropy(data: bytes) -> float:
 
 
 def test_bwt_block_size(block_sizes: List[int] = None) -> Tuple[List[int], List[float], float]:
-    """
-    Исследование: зависимость энтропии от размера блока BWT+MTF
-    """
     if block_sizes is None:
         block_sizes = [256, 512, 1024]
     
@@ -76,7 +65,6 @@ def test_bwt_block_size(block_sizes: List[int] = None) -> Tuple[List[int], List[
             bwt = BlockBWT(min(block_size, len(data)))
             blocks, _ = bwt.forward(data)
             
-            # Энтропия после BWT+MTF
             mtf = MTFTransform()
             all_mtf_data = bytearray()
             for block in blocks:
@@ -94,9 +82,6 @@ def test_bwt_block_size(block_sizes: List[int] = None) -> Tuple[List[int], List[
 
 
 def test_lzss_buffer_size(buffer_sizes: List[int] = None) -> Tuple[List[int], List[float]]:
-    """
-    Исследование: зависимость коэффициента сжатия от размера буфера LZSS
-    """
     if buffer_sizes is None:
         buffer_sizes = [256, 512, 1024, 2048]
     
@@ -120,9 +105,6 @@ def test_lzss_buffer_size(buffer_sizes: List[int] = None) -> Tuple[List[int], Li
 
 
 def test_lzw_dict_size(dict_sizes: List[int] = None) -> Tuple[List[int], List[float]]:
-    """
-    Исследование: зависимость коэффициента сжатия от размера словаря LZW
-    """
     if dict_sizes is None:
         dict_sizes = [8, 9, 10, 11]
     
@@ -146,7 +128,6 @@ def test_lzw_dict_size(dict_sizes: List[int] = None) -> Tuple[List[int], List[fl
 
 
 def create_graphs(output_dir: str = "graphs"):
-    """Создаёт все исследовательские графики"""
     os.makedirs(output_dir, exist_ok=True)
     
     print("\n" + "="*70)
@@ -155,7 +136,6 @@ def create_graphs(output_dir: str = "graphs"):
     
     block_sizes, entropies, orig_entropy = test_bwt_block_size()
     
-    # Фильтруем None значения
     valid_indices = [i for i, e in enumerate(entropies) if e is not None]
     valid_sizes = [block_sizes[i] for i in valid_indices]
     valid_entropies = [entropies[i] for i in valid_indices]
@@ -220,10 +200,6 @@ def create_graphs(output_dir: str = "graphs"):
 
 
 def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
-    """
-    Тестирует все компрессоры на простых тестовых данных размером ~1000 байт
-    Возвращает таблицу с результатами
-    """
     
     compressors = [
         ("RLE", RLECompressor(1, 1)),
@@ -236,7 +212,6 @@ def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
         ("LZW+HA", LZWHACompressor(max_code_bits=9)),
     ]
     
-    # Сгенерировать простые тестовые данные
     test_data = [
         ('Text', 'Текст', generate_text_data(1000)),
         ('Binary', 'Бинар', generate_binary_data(1000)),
@@ -257,21 +232,17 @@ def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
         
         for comp_name, compressor in compressors:
             try:
-                # Компрессия
                 start_time = time.time()
                 compressed = compressor.compress(data)
                 compress_time = time.time() - start_time
                 compressed_size = len(compressed)
                 
-                # Декомпрессия
                 start_time = time.time()
                 decompressed = compressor.decompress(compressed)
                 decompress_time = time.time() - start_time
                 
-                # Проверка целостности
                 is_valid = data == decompressed
                 
-                # Расчёты
                 ratio = original_size / compressed_size if compressed_size > 0 else 0
                 saved = original_size - compressed_size
                 
@@ -308,12 +279,10 @@ def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
     
     df = pd.DataFrame(results)
     
-    # Сохранить в CSV
     csv_path = f'{output_dir}/results_table.csv'
     df.to_csv(csv_path, index=False, encoding='utf-8-sig')
     print(f"\n✓ Таблица сохранена: {csv_path}")
     
-    # Сохранить в Excel (если доступно)
     try:
         excel_path = f'{output_dir}/results_table.xlsx'
         df.to_excel(excel_path, index=False)
@@ -321,7 +290,6 @@ def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
     except:
         pass
     
-    # Вывести в консоль
     print("\n" + "="*100)
     print("СВОДНАЯ ТАБЛИЦА РЕЗУЛЬТАТОВ")
     print("="*100 + "\n")
@@ -342,7 +310,6 @@ def test_all_compressors(output_dir: str = "graphs") -> pd.DataFrame:
 
 
 def plot_comparison(df: pd.DataFrame, output_dir: str = "graphs"):
-    """Создаёт сравнительные графики компрессоров"""
     
     valid_df = df[df['Valid'] == True].copy()
     
@@ -350,7 +317,6 @@ def plot_comparison(df: pd.DataFrame, output_dir: str = "graphs"):
         print("Нет валидных данных для графиков")
         return
     
-    # 1. Сравнение по типам данных
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     
     data_types = ['Text', 'Binary', 'Repetitive']
@@ -371,7 +337,6 @@ def plot_comparison(df: pd.DataFrame, output_dir: str = "graphs"):
     print(f"✓ График сохранён: {output_dir}/04_compressor_comparison.png")
     plt.close()
     
-    # 2. Общее сравнение всех компрессоров
     overall_avg = valid_df.groupby('Compressor')['Compression Ratio'].mean().sort_values(ascending=False)
     
     plt.figure(figsize=(12, 6))
@@ -382,7 +347,6 @@ def plot_comparison(df: pd.DataFrame, output_dir: str = "graphs"):
     plt.title('Сравнение эффективности всех компрессоров', fontsize=14, fontweight='bold')
     plt.grid(True, alpha=0.3, axis='x')
     
-    # Добавить значения на столбцы
     for bar in bars:
         width = bar.get_width()
         plt.text(width, bar.get_y() + bar.get_height()/2, f'{width:.2f}x',
@@ -402,13 +366,10 @@ def main():
     
     output_dir = "graphs"
     
-    # Создать графики исследований
     create_graphs(output_dir)
     
-    # Протестировать все компрессоры
     results_df = test_all_compressors(output_dir)
     
-    # Создать сравнительные графики
     plot_comparison(results_df, output_dir)
     
     print("\n" + "="*70)
