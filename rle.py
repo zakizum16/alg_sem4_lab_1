@@ -1,9 +1,12 @@
 import struct
 import os
+import time
 from typing import Tuple
+from base import Compressor
 
-class RLECompressor:
+class RLECompressor(Compressor):
     def __init__(self, Ms: int = 1, Mc: int = 1):
+        super().__init__(f"RLE(Ms={Ms},Mc={Mc})")
         self.Ms = Ms
         self.Mc = Mc
         self.max_run = (1 << (Mc * 8 - 1)) - 1
@@ -100,6 +103,22 @@ class RLECompressor:
                     result.extend(symbol)
         
         return bytes(result)
+    
+    def compress(self, data: bytes) -> bytes:
+        """Стандартный интерфейс Compressor"""
+        self.original_size = len(data)
+        start = time.time()
+        compressed = self.encode(data)
+        self.encode_time = time.time() - start
+        self.compressed_size = len(compressed)
+        return compressed
+    
+    def decompress(self, data: bytes) -> bytes:
+        """Стандартный интерфейс Compressor"""
+        start = time.time()
+        decompressed = self.decode(data)
+        self.decode_time = time.time() - start
+        return decompressed
     
     def _encode_length(self, length: int, is_non_run: bool = False) -> bytes:
         if is_non_run:

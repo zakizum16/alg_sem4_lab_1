@@ -5,7 +5,7 @@ import os
 import threading
 import time
 from base import Compressor
-from rle_wrapper import RLECompressorWrapper
+from rle import RLECompressor
 from huffman import HuffmanCompressor
 from lz import LZSSCompressor, LZWCompressor
 from combined import BWTRLECompressor, BWTMTFRLECompressor
@@ -61,15 +61,15 @@ def test_compressor(comp: Compressor, data: bytes, name: str, timeout: int = 20)
         ratio = stats['ratio']
         size_kb = stats['original'] / 1024
         
-        print(f"  ✓ {name:<25} | {size_kb:>8.1f}KB -> {stats['compressed']:>8} | {ratio:>6.2f}x | E:{compress_time:.3f}s D:{decomp_time:.3f}s")
+        print(f"  [OK] {name:<23} | {size_kb:>8.1f}KB -> {stats['compressed']:>8} | {ratio:>6.2f}x | E:{compress_time:.3f}s D:{decomp_time:.3f}s")
         return True, stats
     
     except TimeoutException:
-        print(f"  ⊘ {name:<25} | TIMEOUT after {timeout}s")
+        print(f"  [TMO] {name:<23} | TIMEOUT after {timeout}s")
         return False, None
     except Exception as e:
         error_msg = str(e)[:35]
-        print(f"  ✗ {name:<25} | Error: {error_msg}")
+        print(f"  [ERR] {name:<23} | Error: {error_msg}")
         return False, None
 
 
@@ -81,7 +81,7 @@ def test_on_data(data: bytes, label: str, skip_slow: bool = False):
     print("-" * 130)
     
     compressors = [
-        (RLECompressorWrapper(1, 1), "RLE(Ms=1,Mc=1)"),
+        (RLECompressor(1, 1), "RLE(Ms=1,Mc=1)"),
         (LZWCompressor(12), "LZW(12 bits)"),
     ]
     
