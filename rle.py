@@ -5,7 +5,7 @@ from typing import Tuple
 from base import Compressor
 
 class RLECompressor(Compressor):
-    def __init__(self, Ms: int = 1, Mc: int = 1):
+    def __init__(self, Ms: int = 1, Mc: int = 2):
         super().__init__(f"RLE(Ms={Ms},Mc={Mc})")
         self.Ms = Ms
         self.Mc = Mc
@@ -21,39 +21,38 @@ class RLECompressor(Compressor):
         
         while i < n:
             if i + self.Ms <= n:
-                current_symbol = data[i:i+self.Ms]
+                current_block = data[i:i+self.Ms]
                 run_len = 1
                 
                 while (i + (run_len + 1) * self.Ms <= n and 
-                       data[i + run_len * self.Ms:i + (run_len + 1) * self.Ms] == current_symbol and
+                       data[i + run_len * self.Ms:i + (run_len + 1) * self.Ms] == current_block and
                        run_len < self.max_run):
                     run_len += 1
                 
-                if run_len > 1:
+                if run_len >= 2:
                     result.extend(self._encode_length(run_len, is_non_run=False))
-                    result.extend(current_symbol)
+                    result.extend(current_block)
                     i += run_len * self.Ms
                     continue
             
+            non_run_start = i
             non_run_len = 0
+            
             while i + (non_run_len + 1) * self.Ms <= n and non_run_len < self.max_run:
-                next_pos = i + non_run_len * self.Ms
-                next_symbol = data[next_pos:next_pos+self.Ms]
+                test_pos = i + non_run_len * self.Ms
+                test_block = data[test_pos:test_pos+self.Ms]
                 
                 next_run = 1
-                while (next_pos + (next_run + 1) * self.Ms <= n and
-                       data[next_pos + next_run * self.Ms:next_pos + (next_run + 1) * self.Ms] == next_symbol and
+                while (test_pos + (next_run + 1) * self.Ms <= n and
+                       data[test_pos + next_run * self.Ms:test_pos + (next_run + 1) * self.Ms] == test_block and
                        next_run < self.max_run):
                     next_run += 1
                 
                 if next_run >= 2 and non_run_len > 0:
                     break
                 
-                if non_run_len == 0 and i + self.Ms <= n:
-                    next_next = i + self.Ms
-                    if next_next + self.Ms <= n:
-                        if data[next_next:next_next+self.Ms] == next_symbol:
-                            break
+                if non_run_len == 0 and next_run >= 2:
+                    break
                 
                 non_run_len += 1
             
@@ -83,12 +82,12 @@ class RLECompressor(Compressor):
             
             length_bytes = data[i:i+self.Mc]
             i += self.Mc
-            length = self._decode_length(length_bytes)
+            length_value = self._decode_length(length_bytes)
             
-            is_non_run = (length & (1 << (self.Mc * 8 - 1))) != 0
+            is_non_run = (length_value & (1 << (self.Mc * 8 - 1))) != 0
+            length = length_value & ((1 << (self.Mc * 8 - 1)) - 1)
             
             if is_non_run:
-                length = length & ((1 << (self.Mc * 8 - 1)) - 1)
                 for _ in range(length):
                     if i + self.Ms > n:
                         break
@@ -119,9 +118,10 @@ class RLECompressor(Compressor):
         return decompressed
     
     def _encode_length(self, length: int, is_non_run: bool = False) -> bytes:
+        value = length & ((1 << (self.Mc * 8 - 1)) - 1)
         if is_non_run:
-            length = length | (1 << (self.Mc * 8 - 1))
-        return length.to_bytes(self.Mc, byteorder='big')
+            value |= (1 << (self.Mc * 8 - 1))
+        return value.to_bytes(self.Mc, byteorder='big')
     
     def _decode_length(self, length_bytes: bytes) -> int:
         return int.from_bytes(length_bytes, byteorder='big')
@@ -129,7 +129,7 @@ class RLECompressor(Compressor):
 
 class RLEFileHandler:
     
-    def __init__(self, Ms: int = 1, Mc: int = 1, output_dir: str = "rlecoding"):
+    def __init__(self, Ms: int = 1, Mc: int = 2, output_dir: str = "rlecoding"):
         self.Ms = Ms
         self.Mc = Mc
         self.compressor = RLECompressor(Ms, Mc)
@@ -166,17 +166,15 @@ class RLEFileHandler:
             output_path = os.path.join(self.output_dir, base_name + '.decoded')
         
         with open(output_path, 'wb') as f:
-            f.write(decompressed)
+            f.write(decompressed[:original_size])
         
         return original_size, len(compressed_data), output_path
 
 
 def get_available_files():
-    """Получить список доступных файлов из raw_images и test_data"""
     files = {}
     counter = 1
     
-    # Файлы из test_data
     if os.path.exists('test_data'):
         for f in sorted(os.listdir('test_data')):
             full_path = os.path.join('test_data', f)
@@ -184,7 +182,6 @@ def get_available_files():
                 files[counter] = full_path
                 counter += 1
     
-    # Файлы из raw_images
     if os.path.exists('raw_images'):
         for f in sorted(os.listdir('raw_images')):
             full_path = os.path.join('raw_images', f)
@@ -196,7 +193,6 @@ def get_available_files():
 
 
 def select_file():
-    """Интерактивный выбор файла для сжатия"""
     files = get_available_files()
     
     if not files:
@@ -225,41 +221,35 @@ def select_file():
 
 
 def determine_ms(file_path: str) -> int:
-    """Определить оптимальный Ms для файла"""
     name_lower = os.path.basename(file_path).lower()
     
     if 'color' in name_lower:
-        return 3  # RGB
+        return 3
     elif 'bw' in name_lower or 'gray' in name_lower:
-        return 1  # BW
+        return 1
     else:
-        return 1  # Default
+        return 1
 
 
 def main():
-    """RLE компрессор - выбор файла и сжатие"""
     print("\n" + "="*70)
     print("RLE КОМПРЕССОР")
     print("="*70)
     
-    # Выбор файла
     file_path = select_file()
     if not file_path:
         print("Выход.")
         return
     
-    # Определяем Ms
     Ms = determine_ms(file_path)
-    Mc = 1
+    Mc = 2
     
     print("\n" + "="*70)
     print(f"СЖАТИЕ: {file_path}")
     print("="*70)
     
-    # Создаем обработчик
     handler = RLEFileHandler(Ms=Ms, Mc=Mc, output_dir="rlecoding")
     
-    # Сжатие
     print(f"\nПараметры: Ms={Ms}, Mc={Mc}")
     print("Сжатие...")
     original_size, compressed_size, compressed_path = handler.compress_file(file_path)
@@ -270,11 +260,9 @@ def main():
     print(f"  Коэффициент:      {ratio:>23.2f}x")
     print(f"  Сохранено в:      {compressed_path}")
     
-    # Распаковка
     print("\nРаспаковка...")
     decompressed_size, _, decompressed_path = handler.decompress_file(compressed_path)
     
-    # Проверка корректности
     with open(file_path, 'rb') as f1, open(decompressed_path, 'rb') as f2:
         original = f1.read()
         decompressed = f2.read()
@@ -291,4 +279,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
